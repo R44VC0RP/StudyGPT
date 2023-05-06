@@ -1,0 +1,605 @@
+<html>
+   <head>
+      <title>StudyGPT</title>
+      <script>
+          window.onload = function() {
+              if (!envKey) {
+                  document.getElementById("api-key-popup-wrapper").style.display = "block";
+              }
+          };
+         let envKey = getCookie("openai_key");
+         if (!envKey) {
+             window.onload = function() {
+                 document.getElementById("api-key-popup-wrapper").style.display = "block";
+             };
+         }
+         
+         function saveAPIKeyAndClosePopup() {
+            envKey = document.getElementById("api-key-input").value;
+            if (envKey.trim() === "") {
+                alert("Please enter a valid API key.");
+                return;
+            }
+            setCookie("openai_key", envKey, 30);
+            document.getElementById("api-key-popup-wrapper").style.display = "none";
+        }
+         
+         function setCookie(cname, cvalue, exdays) {
+             const d = new Date();
+             d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+             const expires = "expires=" + d.toUTCString();
+             document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+             let envKey = getCookie("openai_key");
+         }
+         
+         function getCookie(cname) {
+             let name = cname + "=";
+             let decodedCookie = decodeURIComponent(document.cookie);
+             let ca = decodedCookie.split(';');
+             for (let i = 0; i < ca.length; i++) {
+                 let c = ca[i];
+                 while (c.charAt(0) == ' ') {
+                     c = c.substring(1);
+                 }
+                 if (c.indexOf(name) == 0) {
+                     return c.substring(name.length, c.length);
+                 }
+             }
+             return "";
+         }
+         
+         
+         
+         var promptA = `You are going to help me study, on the topic of:`
+         var promptB = `
+         I need you to ask me multiple choice, true/false, and written response questions to help me study for this exam. You can make up problems and programs to simulate real life situations to help quiz me. I need you to be smart about the questions, if you see that I am struggling in a certain subject, give me more questions related to that topic. If I still do not understand the topic, give me small hints to help me along. I will prompt you first with the amount of questions to ask, at the end of those questions, give an analysis of what I am good at, what I need to improve and what I have mastered.
+         
+         Ask me one question at a time, wait until I understand each question before moving on.
+         
+         If I give you a study guide or long list of topics, randomly select questions from the topics to quiz me on. 
+         
+         Make sure to put all code within <code>, </code> braces, do not use '' quotes, whether it be one line or mulitple lines. Make sure to add <br> characters when you need a newline, do not print on a new line.
+         
+         If the question is a true/false, format it like this:
+         TRUEFALSE="questiontext"
+         
+         If it is a multiple choice question, format it like this, make only one answer correct.:
+         MULTIPLE={"questiontext">> "choicea">> "choiceb">> "choicec">> "choiced"}
+         
+         If it is a written answer question, format it like this:
+         WRITTEN="questiontext"
+         
+         When you have feedback for the user after they answer format it like this, then on the same line you can print the next question:
+         
+         FEEDBACK=right/wrong&&&"feedbackresults"||
+         
+         Only format your results in the above ways. ONLY RETURN ONE LINE OF TEXT. If you have multiple lines of text, it will not work.
+         
+         So an example question with feedback would look like:
+         FEEDBACK=right/wrong&&&"feedbackresults"||WRITTEN="questiontext"
+         
+         For the first question when I give you the amount of questions, do not provide feedback, just give a question. 
+         
+         You will only reply with TRUEFALSE, MULTIPLE, WRITTEN, or FEEDBACK.
+         
+         After the user completes the amount of questions they specificed, print out the final feedback, then provide feedback on the overall performance of the user.
+         
+         Examples: 
+         FEEDBACK=right/wrong&&&"feedback"||<h1>Overview</h1><p>Evauluation and Topics for improvement</p>
+         WRITTEN="What is the purpose of a function in programming?"
+         TRUEFALSE="In Python, you can create a function using the 'def' keyword."
+         MULTIPLE={"What is the output of the following Python code?<br><code>x = 5<br>if x > 10:<br> print('x is greater than 10')<br>else:<br> print('x is not greater than 10')</code>">> "x is greater than 10">> "x is not greater than 10">> "x is equal to 10">> "None of the above"}
+         MULTIPLE={"Which of these is not a primitive data type in Python?">> "int">> "float">> "str">> "list"}
+         MULTIPLE={"What will be the output of the following Python code?<br><code>my_list = [1, 2, 3, 4]<br>print(my_list[2])</code>">> "1">> "2">> "3">> "4"}
+         MULTIPLE={"Which of the following documents is the supreme law of the United States?">> "The Declaration of Independence">> "The Articles of Confederation">> "The United States Constitution">> "The Bill of Rights"}
+         
+         
+         Ask the first question by itself if you understand.
+         
+         `;
+         var messages = [];
+         var questionsDone = 0;
+         var numberOfQuestions = 0;
+         
+         
+         
+         
+         // Cookies will be used to get the OpenAI API key, and store it in the browser.
+         
+         
+         // Report Card Array, that will be used to store the results of the questions
+         var reportCard = [];
+         //document.getElementById("status").style.display = "block";
+         
+         
+         
+         async function getResponse(userResponse = null) {
+             // Check if ((())) is in the user response, if so, then the user is done with the questions
+             // Add the user response to the messages array
+             messages.push({role: "user", content: userResponse});
+         
+           document.getElementById("loading-overlay").style.display = "block";
+           //console.log(messages)
+           const response = await fetch("https://api.openai.com/v1/chat/completions", {
+             method: "post",
+             headers: {
+               "Content-Type": "application/json",
+               "Authorization": "Bearer " + envKey,
+             },
+             body: JSON.stringify({
+               model: "gpt-4",
+               messages: messages,
+             }),
+           });
+         
+           const data = await response.json();
+           const responseText = data.choices[0].message.content;
+           messages.push({role: "assistant", content: responseText});
+           //console.log(responseText)
+           document.getElementById("loading-overlay").style.display = "none";
+           processResponse(responseText);
+           questionsDone++;
+           console.log(questionsDone + "/" + numberOfQuestions);
+           const update = document.getElementById("status");
+           update.innerHTML = "<h3>Question " + questionsDone + "/" + numberOfQuestions + "</h3>";
+           console.log(responseText)
+           //processResponse(responseText);
+         }
+         
+         function processResponse(responseText) {
+             
+           //questionsDone++;
+           responseText = responseText.replace(/\"/g, "");
+           // check if the response contains ` or ``` if so, then it is a code block
+           
+           
+           const questionDiv = document.getElementById("questions");
+           questionDiv.innerHTML = "";
+           console.log("Response Text: " + responseText);
+           if (responseText.startsWith("MULTIPLE=")) {
+             displayMultipleChoice(responseText);
+           } else if (responseText.startsWith("WRITTEN=")) {
+             displayWrittenQuestion(responseText);
+           } else if (responseText.startsWith("TRUEFALSE=")) {
+             displayTrueFalseQuestion(responseText);
+           } else if (responseText.startsWith("FEEDBACK=")) {
+             displayFeedback(responseText);
+           } else {
+             
+           }
+         }
+         
+         function displayMultipleChoice(responseText) {
+           const questionSplit = responseText.replace("MULTIPLE=", "").split("{")[1].slice(0, -1);
+           console.log(questionSplit);
+           const questionParts = questionSplit.split(">> ");
+           console.log(questionParts);
+           const question = questionParts[0].replace(/\n/g, '<br>');
+           const choices = questionParts.slice(1);
+           // WRITTEN=Analyze this Python program: <code>total = 2 + 5 * 3</code>. What is the value of total?
+         
+           const questionDiv = document.getElementById("questions");
+           const questionElement = document.createElement("h2");
+           
+           questionElement.innerHTML = question;
+           questionDiv.appendChild(questionElement);
+         
+           choices.forEach((choice, index) => {
+             const choiceElement = document.createElement("div");
+             const radioInput = document.createElement("input");
+             radioInput.setAttribute("type", "radio");
+             radioInput.setAttribute("name", "multipleChoice");
+             radioInput.setAttribute("id", `choice${index}`);
+             radioInput.setAttribute("value", choice);
+             choiceElement.appendChild(radioInput);
+         
+             const label = document.createElement("label");
+             label.setAttribute("for", `choice${index}`);
+             label.innerText = choice;
+             choiceElement.appendChild(label);
+         
+             questionDiv.appendChild(choiceElement);
+           });
+         
+           const submitButton = document.createElement("button");
+           submitButton.innerText = "Submit";
+           submitButton.onclick = () => {
+             const selectedChoice = document.querySelector('input[name="multipleChoice"]:checked');
+             if (selectedChoice) {
+               getResponse(selectedChoice.value);
+             }
+           };
+           questionDiv.appendChild(submitButton);
+         }
+         
+         
+         function displayWrittenQuestion(responseText) {
+           const question = responseText.replace("WRITTEN=", "").replace(/\n/g, '<br>'); // Replace \n with <br>
+           const questionDiv = document.getElementById("questions");
+           const questionElement = document.createElement("h2");
+           questionElement.innerHTML = question;
+           questionDiv.appendChild(questionElement);
+         
+           const answerInput = document.createElement("textarea");
+           answerInput.setAttribute("id", "writtenAnswer");
+           answerInput.setAttribute("rows", "5");
+           answerInput.setAttribute("cols", "50");
+           questionDiv.appendChild(answerInput);
+         
+           const submitButton = document.createElement("button");
+           submitButton.innerText = "Submit";
+           submitButton.onclick = () => {
+             const writtenAnswer = document.getElementById("writtenAnswer").value;
+             if (writtenAnswer) {
+               getResponse(writtenAnswer);
+             }
+           };
+           const br = document.createElement("br");
+           questionDiv.appendChild(br);
+           questionDiv.appendChild(submitButton);
+         }
+         
+         
+         function displayTrueFalseQuestion(responseText) {
+           const question = responseText.slice(10).replace(/\n/g, '<br>'); // Replace \n with <br>
+           const questionDiv = document.getElementById("questions");
+           const questionElement = document.createElement("h2");
+           questionElement.innerHTML = question;
+           questionDiv.appendChild(questionElement);
+         
+           const trueButton = document.createElement("button");
+           trueButton.innerText = "True";
+           trueButton.onclick = () => getResponse("True");
+           questionDiv.appendChild(trueButton);
+         
+           const falseButton = document.createElement("button");
+           falseButton.innerText = "False";
+           falseButton.onclick = () => getResponse("False");
+           questionDiv.appendChild(falseButton);
+         }
+         
+         
+         function displayFeedback(responseText) {
+             const feedback = responseText.slice(9);
+             const answerChoice = feedback.split("&&&")[0];
+             const feedbackOther = feedback.split("&&&")[1];
+             const nextQuestion = feedbackOther.split("||")[1];
+             const feedbackText = feedbackOther.split("||")[0];
+         
+             // Update the report card, with this format: Question X: Correct/Wrong, Feedback
+             if (answerChoice === "right") {
+                 reportCard.push("<span id='green'>◆ Question " + (questionsDone ) + ": " + feedbackText + "</span>");
+             } else {
+                 reportCard.push("<span id='red'>◇ Question " + (questionsDone) + ": " + feedbackText + "</span>");
+             }
+             //reportCard.push("<span id='green'>◆ Question " + (questionsDone - 1) + ": " + feedbackText + "</span>");
+           
+         
+             // Display feedback pop-up
+             document.getElementById("popup-wrapper").style.display = "block";
+             document.getElementById("popup-title").innerHTML = answerChoice === "right" ? "Correct!" : "Wrong!";
+             document.getElementById("popup-feedback").innerHTML = feedbackText;
+             document.getElementById("popup-next").onclick = () => {
+               if (questionsDone > numberOfQuestions){
+                 displayFinish()
+               }
+                 // Hide feedback popup
+                 document.getElementById("popup-wrapper").style.display = "none";
+                 // Display the next question
+                 if (nextQuestion.startsWith("MULTIPLE=")) {
+                     displayMultipleChoice(nextQuestion);
+                 } else if (nextQuestion.startsWith("WRITTEN=")) {
+                     displayWrittenQuestion(nextQuestion);
+                 } else if (nextQuestion.startsWith("TRUEFALSE=")) {
+                     displayTrueFalseQuestion(nextQuestion);
+                 }
+             };
+         }
+         
+         function displayMessages() {
+             numberOfQuestions = document.getElementById("numberOfQuestions").value;
+             promptTopic = document.getElementById("topic").value;
+             fullInitPrompt = promptA + promptTopic + promptB + "You will ask " + numberOfQuestions + " questions.";
+             //getResponse(fullInitPrompt);
+           
+             getResponse(fullInitPrompt);
+             document.getElementById("start").style.display = "none";
+             document.getElementById("questions").style.display = "block";
+         }
+         
+         function displayFinish() {
+           const update = document.getElementById("status");
+           update.innerHTML = "<h3></h3>";
+           const reportcardhtml = document.getElementById("reportCard");
+           // Get the last message from the messages array
+             
+             // Object Example:
+             // For the last message in the message array split the text at the || and then print the second part of the split in the update div (the feedback)
+             var lastMessage = messages[messages.length - 1];
+             var feedback = lastMessage.content.split("||")[1];
+             update.innerHTML = "<h2>" + feedback + "</h2>";
+           // Iterate through the report card array and display each element
+           //update.innerHTML = "<h2>Report Card</h2>";
+             for (let i = 0; i < reportCard.length; i++) {
+               if (i == 0){
+                 reportcardhtml.innerHTML += "<h1>Detailed Question By Question Review</h1>" + "<br>";
+               }
+                 reportcardhtml.innerHTML += reportCard[i] + "<br>";
+                 }
+         
+             
+           document.getElementById("reportCard").style.display = "block";
+         
+           document.getElementById("questions").style.display = "none";
+         }
+         
+         
+         
+         
+      </script>
+      <style>
+          code {
+              display: block;
+              background-color: #f0f0f0;
+              padding: 10px;
+              border-radius: 10px;
+              font-family: monospace;
+              font-weight: 100;
+              white-space: pre-wrap;
+              font-size: medium;
+          }
+          #red {
+              color: red;
+          }
+          #green {
+              color: green;
+          }
+          #completion-popup {
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.7);
+              z-index: 1001;
+              text-align: center;
+              vertical-align: middle;
+          }
+          #completion-content {
+              background-color: #fff;
+              display: inline-block;
+              padding: 20px;
+              margin-top: 100px;
+              border-radius: 5px;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+          }
+          #completion-title {
+              font-size: 24px;
+              font-weight: bold;
+          }
+          .progress {
+              width: 100%;
+              height: 30px;
+              background-color: #f3f3f3;
+              border-radius: 5px;
+          }
+          .progress-bar {
+              height: 100%;
+              background-color: #007bff;
+              text-align: center;
+              line-height: 30px;
+              color: white;
+              border-radius: 5px;
+              width: 0;
+          }
+          /* General styling */
+          body {
+              font-family: Arial, sans-serif;
+              background-color: #f3f3f3;
+              padding: 20px;
+          }
+          /* Input fields */
+          input, textarea {
+              font-size: 16px;
+              padding: 5px;
+              margin: 5px;
+              border: 1px solid #ccc;
+              border-radius: 5px;
+          }
+          /* Buttons */
+          button {
+              font-size: 16px;
+              padding: 5px 10px;
+              margin: 5px;
+              background-color: #007bff;
+              color: white;
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+          }
+          button:hover {
+              background-color: #0056b3;
+          }
+          /* Feedback banner */
+          #feedbackBanner {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              background-color: #f0ad4e;
+              color: white;
+              text-align: center;
+              padding: 10px;
+              font-weight: bold;
+              z-index: 1000;
+          }
+          /* Question container */
+          #questions {
+              background-color: white;
+              border-radius: 5px;
+              padding: 20px;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+          }
+          /* Question title */
+          #questions h1 {
+              font-size: 24px;
+              margin-bottom: 20px;
+          }
+          /* Question text */
+          #questions h2 {
+              font-size: 18px;
+              margin-bottom: 10px;
+          }
+          /* Radio input styling */
+          input[type="radio"] {
+              margin-right: 5px;
+          }
+          /* Radio label styling */
+          label {
+              font-size: 16px;
+              margin-right: 20px;
+          }
+          #popup-wrapper {
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.7);
+              z-index: 1000;
+              text-align:center;
+              vertical-align: middle;
+          }
+          #popup-content {
+              background-color: #fff;
+              display:inline-block;
+              padding: 20px;
+              margin-top:100px;
+              border-radius: 5px;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+          }
+          #popup-title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 20px;
+          }
+          #popup-feedback {
+              font-size: 18px;
+              margin-bottom: 20px;
+          }
+          #loading-overlay {
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background-color: rgba(0, 0, 0, 0.5);
+              z-index: 999;
+          }
+
+          #loading-overlay:before {
+              content: "";
+              position: absolute;
+              left: 50%;
+              top: 50%;
+              width: 40px;
+              height: 40px;
+              margin-left: -15px;
+              margin-top: -15px;
+              border: 3px solid #ffffff;
+              border-radius: 50%;
+              border-top-color: transparent;
+              animation: spinner 0.6s linear infinite;
+          }
+
+          @keyframes spinner {
+              to {
+                  transform: rotate(360deg);
+              }
+          }
+          /* Add styling for API key popup window */
+          #api-key-popup-wrapper {
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.7);
+              z-index: 1000;
+              text-align: center;
+              vertical-align: middle;
+          }
+
+          #api-key-popup-content {
+              background-color: #fff;
+              display: inline-block;
+              padding: 20px;
+              margin-top: 100px;
+              border-radius: 5px;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+          }
+
+          #api-key-popup-title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 20px;
+          }
+          /* Add styling for <code> tag */
+          code {
+              font-family: monospace;
+              background-color: #f8f8f8;
+              padding: 2px 4px;
+              border-radius: 3px;
+          }
+              
+      </style>
+   </head>
+   <body>
+      <div id="feedbackBanner"></div>
+      <br>
+      <div id="status">
+      </div>
+      <br>
+      <div id="reportCard">
+      </div>
+      <div id="start">
+        <h1>Welcome to StudyGPT</h1>
+         <h2>Enter the number of questions you want to do.</h2>
+         <input type="number" id="numberOfQuestions" placeholder="Enter a number.">
+         <!-- This will be the place where there is a multiline text input so the user can input the topic they want to study-->
+         <br>
+         <h2>Enter the topic you want to do. You can plug in a study guide, topics, etc.</h2>
+         <textarea id="topic" name="topic" rows="4" cols="50"></textarea>
+         <br>
+         <button onclick="displayMessages()">Submit</button>
+      </div>
+      <div id="questions" style="display: none;">
+         <h1 id="titleA">Questions</h1>
+      </div>
+      <div id="loading-overlay"></div>
+      <div id="completion-popup">
+         <div id="completion-content">
+            <h2 id="completion-title">Good Job! You are done!</h2>
+            <button id="completion-close">Close</button>
+         </div>
+      </div>
+      <div id="popup-wrapper">
+         <div id="popup-content">
+            <div id="popup-title"></div>
+            <div id="popup-feedback"></div>
+            <button id="popup-next">Next</button>
+         </div>
+      </div>
+      <div id="api-key-popup-wrapper">
+        <div id="api-key-popup-content">
+            <div id="api-key-popup-title">Please enter your OpenAI API key:</div>
+            <input type="text" id="api-key-input" placeholder="API key">
+            <button onclick="saveAPIKeyAndClosePopup()">Submit</button>
+        </div>
+    </div>
+   </body>
+</html>
