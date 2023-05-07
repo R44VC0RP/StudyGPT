@@ -45,4 +45,4 @@ If you find this project helpful and want to support the development, consider b
  - A timer to measure how long it takes to answer each question
  - An option to save quiz results and review them later
  - An option to print or share results
-- An Option to continue
+ - An option to continue
