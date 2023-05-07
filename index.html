@@ -58,13 +58,13 @@
          
          If I give you a study guide or long list of topics, randomly select questions from the topics to quiz me on. 
          
-         Make sure to put all code within <code>, </code> braces, do not use '' quotes, whether it be one line or mulitple lines. Make sure to add <br> characters when you need a newline, do not print on a new line.
+         Make sure to put all code within <code>, </code> braces, do not put any code or newlines in multiple choice questions, do not use '' quotes, whether it be one line or mulitple lines. Add <br> characters when you need a newline, do not print on a new line or use the \\n character.
          
          If the question is a true/false, format it like this:
          TRUEFALSE="questiontext"
          
          If it is a multiple choice question, format it like this, make only one answer correct.:
-         MULTIPLE={"questiontext">> "choicea">> "choiceb">> "choicec">> "choiced"}
+         MULTIPLE={"questiontext"^^^"choicea"^^^"choiceb"^^^"choicec"^^^"choiced"}
          
          If it is a written answer question, format it like this:
          WRITTEN="questiontext"
@@ -75,26 +75,21 @@
          
          Only format your results in the above ways. ONLY RETURN ONE LINE OF TEXT. If you have multiple lines of text, it will not work.
          
-         So an example question with feedback would look like:
+         So an example question with feedback would look like, ALWAYS MAKE SURE that the feedback there is no spacing between the feedback and the ||, and the question and the ||, the program will crash if there is a space. Always provide a question after the feedback, even if it is just a blank filler question or else the program will not work.
          FEEDBACK=right/wrong&&&"feedbackresults"||WRITTEN="questiontext"
          
          For the first question when I give you the amount of questions, do not provide feedback, just give a question. 
          
          You will only reply with TRUEFALSE, MULTIPLE, WRITTEN, or FEEDBACK.
          
-         After the user completes the amount of questions they specificed, print out the final feedback, then provide feedback on the overall performance of the user.
+         After the user completes the amount of questions they specificed, print out the final feedback, then provide a comprehensive evaluation and feedback on the overall performance of the user, provide it like a teacher tells a student Then give a question by question review. You can use whatever HTML formatting you need to acomplish this, just make all of the text white in color by using a style attribute.
          
          Examples: 
-         FEEDBACK=right/wrong&&&"feedback"||<h1>Overview</h1><p>Evauluation and Topics for improvement</p>
-         WRITTEN="What is the purpose of a function in programming?"
-         TRUEFALSE="In Python, you can create a function using the 'def' keyword."
-         MULTIPLE={"What is the output of the following Python code?<br><code>x = 5<br>if x > 10:<br> print('x is greater than 10')<br>else:<br> print('x is not greater than 10')</code>">> "x is greater than 10">> "x is not greater than 10">> "x is equal to 10">> "None of the above"}
-         MULTIPLE={"Which of these is not a primitive data type in Python?">> "int">> "float">> "str">> "list"}
-         MULTIPLE={"What will be the output of the following Python code?<br><code>my_list = [1, 2, 3, 4]<br>print(my_list[2])</code>">> "1">> "2">> "3">> "4"}
-         MULTIPLE={"Which of the following documents is the supreme law of the United States?">> "The Declaration of Independence">> "The Articles of Confederation">> "The United States Constitution">> "The Bill of Rights"}
+         FEEDBACK=right/wrong&&&"feedback"||<h1>Overview</h1><p>Evauluation and Topics for improvement</p>||
          
          
-         Ask the first question by itself if you understand.
+         
+         If you do not follow the above instructions exactly, the program will break. Ask the first question by itself if you understand.
          
          `;
          var messages = [];
@@ -116,6 +111,10 @@
          async function getResponse(userResponse = null) {
              // Check if ((())) is in the user response, if so, then the user is done with the questions
              // Add the user response to the messages array
+            console.log(userResponse)
+            userResponse = userResponse + " (This is question " + questionsDone + " out of " + numberOfQuestions + ", do not repeat this back, this is just for your reference)";
+            //console.log("This is question " + questionsDone + " out of " + numberOfQuestions + ". ");
+
              messages.push({role: "user", content: userResponse});
          
            document.getElementById("loading-overlay").style.display = "block";
@@ -142,7 +141,7 @@
            console.log(questionsDone + "/" + numberOfQuestions);
            const update = document.getElementById("status");
            update.innerHTML = "<h3>Question " + questionsDone + "/" + numberOfQuestions + "</h3>";
-           console.log(responseText)
+           //console.log(responseText)
            //processResponse(responseText);
          }
          
@@ -170,10 +169,11 @@
          }
          
          function displayMultipleChoice(responseText) {
+           console.log("Multiple Choice Question with: " + responseText + " as the response text")
            const questionSplit = responseText.replace("MULTIPLE=", "").split("{")[1].slice(0, -1);
-           console.log(questionSplit);
-           const questionParts = questionSplit.split(">> ");
-           console.log(questionParts);
+           console.log("Question Split: " + questionSplit);
+           const questionParts = questionSplit.split("^^^");
+           console.log("Question Parts: " + questionParts);
            const question = questionParts[0].replace(/\n/g, '<br>');
            const choices = questionParts.slice(1);
            // WRITTEN=Analyze this Python program: <code>total = 2 + 5 * 3</code>. What is the value of total?
@@ -338,6 +338,22 @@
          
       </script>
       <style>
+		      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+
+          h1 {
+            color: #E0E1DD;
+            font-weight: 700;
+          }
+          h3 {
+            color: #E0E1DD;
+            font-weight: 300;
+          }
+          
+          h2 {
+            color: #0D1B2A;
+            font-weight: 300;
+          }
+            
           code {
               display: block;
               background-color: #f0f0f0;
@@ -349,7 +365,7 @@
               font-size: medium;
           }
           #red {
-              color: red;
+              color: #C5283D;
           }
           #green {
               color: green;
@@ -395,9 +411,9 @@
           }
           /* General styling */
           body {
-              font-family: Arial, sans-serif;
-              background-color: #f3f3f3;
-              padding: 20px;
+            font-family: 'Poppins', sans-serif;
+            background-color: #778DA9;
+            padding: 20px;
           }
           /* Input fields */
           input, textarea {
@@ -409,30 +425,32 @@
           }
           /* Buttons */
           button {
+              font-family: 'Poppins', sans-serif;
               font-size: 16px;
-              padding: 5px 10px;
+              padding: 10px 60px;
               margin: 5px;
               background-color: #007bff;
               color: white;
               border: none;
-              border-radius: 5px;
+              border-radius: 15px;
               cursor: pointer;
+              box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
           }
           button:hover {
               background-color: #0056b3;
           }
           /* Feedback banner */
           #feedbackBanner {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              background-color: #f0ad4e;
-              color: white;
-              text-align: center;
-              padding: 10px;
-              font-weight: bold;
-              z-index: 1000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #0D1B2A;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            z-index: 1000;
           }
           /* Question container */
           #questions {
@@ -455,6 +473,16 @@
           input[type="radio"] {
               margin-right: 5px;
           }
+
+          input {
+            /* Coloring */
+            color: #000000;
+            background-color: #ffffff;
+            border-color: #000000;
+            font-family: 'Poppins', sans-serif;
+            height: auto;
+          }
+
           /* Radio label styling */
           label {
               font-size: 16px;
@@ -555,6 +583,10 @@
               padding: 2px 4px;
               border-radius: 3px;
           }
+		  
+		  #questions {
+			  color: #0D1B2A;
+		  }
               
       </style>
    </head>
@@ -568,11 +600,11 @@
       </div>
       <div id="start">
         <h1>Welcome to StudyGPT</h1>
-         <h2>Enter the number of questions you want to do.</h2>
+         <h3>Enter the number of questions you want to do.</h3>
          <input type="number" id="numberOfQuestions" placeholder="Enter a number.">
          <!-- This will be the place where there is a multiline text input so the user can input the topic they want to study-->
          <br>
-         <h2>Enter the topic you want to do. You can plug in a study guide, topics, etc.</h2>
+         <h3>Enter the topic you want to do. You can plug in a study guide, topics, etc.</h3>
          <textarea id="topic" name="topic" rows="4" cols="50"></textarea>
          <br>
          <button onclick="displayMessages()">Submit</button>
@@ -594,12 +626,14 @@
             <button id="popup-next">Next</button>
          </div>
       </div>
-      <div id="api-key-popup-wrapper">
+ 
+	<div id="api-key-popup-wrapper">
         <div id="api-key-popup-content">
             <div id="api-key-popup-title">Please enter your OpenAI API key:</div>
             <input type="text" id="api-key-input" placeholder="API key">
             <button onclick="saveAPIKeyAndClosePopup()">Submit</button>
         </div>
     </div>
+
    </body>
 </html>
