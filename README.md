@@ -38,3 +38,11 @@ This project is open-source and available under the MIT License. Feel free to us
 Contributions to this project are welcome. Feel free to create a fork, make your changes, and submit a pull request. Please ensure your changes are well-documented and follow the existing code style.
 
 If you find this project helpful and want to support the development, consider buying us a coffee at [Buy Me a Coffee](https://www.buymeacoffee.com/exonenterprise).
+
+## Stuff to Add
+
+ - An option to select the difficulty level of questions
+ - A timer to measure how long it takes to answer each question
+ - An option to save quiz results and review them later
+ - An option to print or share results
+- An Option to continue
